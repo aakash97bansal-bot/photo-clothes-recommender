@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Photo Clothes Recommender</title>
     <link rel="stylesheet" href="style.css">
+    <!-- face-api.js CDN -->
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
 </head>
 <body>
     <div class="container">
@@ -15,8 +17,13 @@
         </div>
         <div class="results-section">
             <h2>Detected Characteristics</h2>
-            <div id="characteristics"></div>
+            <div id="characteristics">Please upload a photo.</div>
         </div>
+        <div class="results-section">
+            <h2>Face Crop Preview</h2>
+            <div id="faceCropPreview"></div>
+        </div>
+        <div id="loadingMessage" style="display:none;">Loading models, please wait...</div>
     </div>
     <script src="app.js"></script>
 </body>
