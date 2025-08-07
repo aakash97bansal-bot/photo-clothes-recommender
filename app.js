@@ -3,12 +3,12 @@ window.addEventListener('DOMContentLoaded', async function() {
     const loadingMsg = document.getElementById('loadingMessage');
     loadingMsg.style.display = 'block';
     document.getElementById('characteristics').textContent = "Loading face recognition models...";
-    // Load models from CDN
-    await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js/weights');
-    await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js/weights');
-    await faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js/weights');
-    await faceapi.nets.ageGenderNet.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js/weights');
-    await faceapi.nets.faceExpressionNet.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js/weights');
+    // Load models from local /models directory
+    await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+    await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+    await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+    await faceapi.nets.ageGenderNet.loadFromUri('/models');
+    await faceapi.nets.faceExpressionNet.loadFromUri('/models');
     loadingMsg.style.display = 'none';
     document.getElementById('characteristics').textContent = "Please upload a photo.";
 });
