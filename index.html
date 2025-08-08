@@ -1,30 +1,59 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Photo Clothes Recommender</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- face-api.js CDN -->
-    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Photo Clothes Recommender</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- face-api.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>Photo Clothes Recommender</h1>
-        <div class="upload-section">
-            <input type="file" id="photoInput" accept="image/*">
-            <div class="image-preview" id="imagePreview"></div>
-        </div>
-        <div class="results-section">
-            <h2>Detected Characteristics</h2>
-            <div id="characteristics">Please upload a photo.</div>
-        </div>
-        <div class="results-section">
-            <h2>Face Crop Preview</h2>
-            <div id="faceCropPreview"></div>
-        </div>
-        <div id="loadingMessage" style="display:none;">Loading models, please wait...</div>
+  <div class="container">
+    <h1>Photo Clothes Recommender</h1>
+
+    <div class="upload-section">
+      <input type="file" id="photoInput" accept="image/*" />
+      <div class="image-preview" id="imagePreview">
+        <!-- preview goes here -->
+      </div>
     </div>
-    <script src="app.js"></script>
+
+    <div class="results-section">
+      <h2>Detected Characteristics</h2>
+      <div id="characteristics">Please upload a photo.</div>
+    </div>
+
+    <div class="results-section">
+      <h2>Face Crop Preview</h2>
+      <div id="faceCropPreview"></div>
+    </div>
+
+    <!-- New: weather selector (hidden until analysis completes) -->
+    <div class="results-section weather-section" id="weatherSection" style="display: none;">
+      <h2>Select Season/Weather</h2>
+      <select id="weatherSelect">
+        <option value="summer">Summer</option>
+        <option value="winter">Winter</option>
+        <option value="rainy">Rainy</option>
+        <option value="autumn">Autumn</option>
+        <option value="spring">Spring</option>
+      </select>
+      <button id="recommendBtn">Get Recommendations</button>
+    </div>
+
+    <div class="results-section">
+      <h2>Outfit Recommendations</h2>
+      <div id="recommendations">
+        <!-- filled in by app.js -->
+        Select weather and click “Get Recommendations.”
+      </div>
+    </div>
+
+    <div id="loadingMessage" style="display:none;">Loading models, please wait...</div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
