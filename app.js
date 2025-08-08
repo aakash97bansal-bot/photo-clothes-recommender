@@ -1,99 +1,157 @@
-// Wait for face-api.js to load
-window.addEventListener('DOMContentLoaded', async function() {
-    const loadingMsg = document.getElementById('loadingMessage');
-    loadingMsg.style.display = 'block';
-    document.getElementById('characteristics').textContent = "Loading face recognition models...";
-    // Load models from local /models directory
-    await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
-    await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-    await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
-    await faceapi.nets.ageGenderNet.loadFromUri('/models');
-    await faceapi.nets.faceExpressionNet.loadFromUri('/models');
-    loadingMsg.style.display = 'none';
-    document.getElementById('characteristics').textContent = "Please upload a photo.";
-});
+// app.js
+(async function() {
+  const loadingMsg = document.getElementById('loadingMessage');
+  const charDiv      = document.getElementById('characteristics');
+  const imgPreview   = document.getElementById('imagePreview');
+  const facePreview  = document.getElementById('faceCropPreview');
+  const weatherSec   = document.getElementById('weatherSection');
+  const recommendBtn = document.getElementById('recommendBtn');
+  const recDiv       = document.getElementById('recommendations');
 
-document.getElementById('photoInput').addEventListener('change', async function(event) {
-    const file = event.target.files[0];
-    const imagePreview = document.getElementById('imagePreview');
-    const characteristics = document.getElementById('characteristics');
-    const faceCropPreview = document.getElementById('faceCropPreview');
-    if (file) {
-        // Clean up previous
-        imagePreview.innerHTML = '';
-        characteristics.textContent = 'Analyzing photo...';
-        faceCropPreview.innerHTML = '';
-        // Load image
-        const img = document.createElement('img');
-        img.src = URL.createObjectURL(file);
-        img.onload = async () => {
-            imagePreview.appendChild(img);
+  // Load face-api models
+  loadingMsg.style.display = 'block';
+  charDiv.textContent = 'Loading face recognition models...';
+  await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+  await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+  await faceapi.nets.ageGenderNet.loadFromUri('/models');
+  await faceapi.nets.faceExpressionNet.loadFromUri('/models');
+  loadingMsg.style.display = 'none';
+  charDiv.textContent = 'Please upload a photo.';
 
-            // Detect face(s)
-            const detections = await faceapi
-                .detectAllFaces(img, new faceapi.TinyFaceDetectorOptions())
-                .withFaceLandmarks()
-                .withFaceDescriptors()
-                .withAgeAndGender()
-                .withFaceExpressions();
+  let lastChars = {};
 
-            if (!detections.length) {
-                characteristics.textContent = "No face detected. Try another photo.";
-                return;
-            }
+  document.getElementById('photoInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    // reset UI
+    imgPreview.innerHTML = '';
+    facePreview.innerHTML = '';
+    charDiv.textContent = 'Analyzing photo...';
+    weatherSec.style.display = 'none';
+    recDiv.innerHTML = 'Select weather and click “Get Recommendations.”';
 
-            // Use only the first detected face for demo
-            const face = detections[0];
-            const { age, gender, genderProbability, expressions, detection } = face;
-            // Age is float, round to nearest
-            const ageStr = age ? `${Math.round(age)} years` : "Not detected";
-            // Gender with confidence
-            const genderStr = gender ? `${gender} (${(genderProbability*100).toFixed(1)}%)` : "Not detected";
-            // Expression with max probability
-            const expressionEntries = Object.entries(expressions || {});
-            const [topExpression, topProb] = expressionEntries.length
-              ? expressionEntries.reduce((a, b) => (a[1]>b[1]?a:b))
-              : ["Not detected", 0];
+    // show image
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(file);
+    imgPreview.appendChild(img);
 
-            // Estimate skin tone from the face crop (simple average color)
-            let skinTone = "Not detected";
-            try {
-                // Crop face region and analyze average color
-                const box = detection.box;
-                const faceCanvas = document.createElement('canvas');
-                faceCanvas.width = box.width;
-                faceCanvas.height = box.height;
-                const ctx = faceCanvas.getContext('2d');
-                ctx.drawImage(img, box.x, box.y, box.width, box.height, 0, 0, box.width, box.height);
-                const imageData = ctx.getImageData(0, 0, box.width, box.height);
-                let r = 0, g = 0, b = 0, count = 0;
-                for (let i = 0; i < imageData.data.length; i += 4) {
-                    r += imageData.data[i];
-                    g += imageData.data[i+1];
-                    b += imageData.data[i+2];
-                    count++;
-                }
-                r = Math.round(r/count);
-                g = Math.round(g/count);
-                b = Math.round(b/count);
-                skinTone = `rgb(${r},${g},${b})`;
-                // Show face crop preview
-                faceCropPreview.innerHTML = '<canvas width="'+box.width+'" height="'+box.height+'"></canvas>';
-                faceCropPreview.querySelector('canvas').getContext('2d').putImageData(imageData, 0, 0);
-            } catch (e) {
-                skinTone = "Error estimating";
-            }
+    img.onload = async () => {
+      // detect
+      const detections = await faceapi
+        .detectAllFaces(img, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withAgeAndGender()
+        .withFaceExpressions();
 
-            characteristics.innerHTML = `
-                <div>Face color (skin tone): <span style="background:${skinTone};padding:0 1em;border-radius:3px;">&nbsp;</span> ${skinTone}</div>
-                <div>Age: ${ageStr}</div>
-                <div>Gender: ${genderStr}</div>
-                <div>Expression: ${topExpression} (${(topProb*100).toFixed(1)}%)</div>
-            `;
-        };
-    } else {
-        imagePreview.innerHTML = '';
-        characteristics.textContent = '';
-        faceCropPreview.innerHTML = '';
-    }
-});
+      if (!detections.length) {
+        charDiv.textContent = 'No face detected. Try another photo.';
+        return;
+      }
+
+      const face = detections[0];
+      // age/gender
+      const age  = Math.round(face.age || 0);
+      const gen  = face.gender || 'unknown';
+      const genP = face.genderProbability || 0;
+      // expression
+      const expEntries = Object.entries(face.expressions || {});
+      const [topExp, topP] = expEntries.length
+        ? expEntries.reduce((a,b)=> a[1]>b[1]?a:b)
+        : ['none',0];
+
+      // skin tone via avg crop
+      let skinTone = 'n/a';
+      try {
+        const box = face.detection.box;
+        const cnv = document.createElement('canvas');
+        cnv.width = box.width; cnv.height = box.height;
+        const ctx = cnv.getContext('2d');
+        ctx.drawImage(img, box.x, box.y, box.width, box.height, 0, 0, box.width, box.height);
+        const data = ctx.getImageData(0,0,box.width,box.height).data;
+        let [r,g,b,count] = [0,0,0,0];
+        for (let i=0; i<data.length; i+=4) {
+          r+=data[i]; g+=data[i+1]; b+=data[i+2]; count++;
+        }
+        skinTone = `rgb(${ Math.round(r/count) },${ Math.round(g/count) },${ Math.round(b/count) })`;
+        // show crop
+        facePreview.innerHTML = '';
+        facePreview.appendChild(cnv);
+      } catch {
+        skinTone = 'error';
+      }
+
+      // approximate face shape
+      let faceShape = 'Unknown';
+      try {
+        const pts = face.landmarks.positions;
+        let [minX,maxX,minY,maxY] = [Infinity,-Infinity,Infinity,-Infinity];
+        pts.forEach(p=>{
+          if(p.x<minX) minX=p.x;
+          if(p.x>maxX) maxX=p.x;
+          if(p.y<minY) minY=p.y;
+          if(p.y>maxY) maxY=p.y;
+        });
+        const w = maxX-minX, h = maxY-minY, ratio = w/h;
+        if (ratio>=0.9 && ratio<=1.1) faceShape='Square';
+        else if (ratio<0.9) faceShape='Oval';
+        else faceShape='Round';
+      } catch {}
+
+      // show characteristics
+      charDiv.innerHTML = `
+        <div>Face color: <span style="background:${skinTone};padding:0 1em;border-radius:3px;">&nbsp;</span> ${skinTone}</div>
+        <div>Age: ${age} years</div>
+        <div>Gender: ${gen} (${(genP*100).toFixed(1)}%)</div>
+        <div>Expression: ${topExp} (${(topP*100).toFixed(1)}%)</div>
+        <div>Face shape: ${faceShape}</div>
+      `;
+
+      // store for recommendation
+      lastChars = { age, gender: gen, skinTone, faceShape };
+      // show weather selector
+      weatherSec.style.display = 'block';
+    };
+  });
+
+  recommendBtn.addEventListener('click', () => {
+    const weather = document.getElementById('weatherSelect').value;
+    recDiv.textContent = 'Generating outfit suggestions…';
+
+    // Dummy logic — replace with your real API integration
+    const dummy = {
+      summer: ['Linen shirt','Chino shorts','Canvas sneakers','Sunglasses','Panama hat'],
+      winter: ['Wool coat','Layered sweater','Slim jeans','Leather boots','Knit scarf'],
+      rainy:  ['Waterproof jacket','Quick-dry pants','Rain boots','Compact umbrella','Water-resistant bag'],
+      spring: ['Denim jacket','Floral tee','Khaki pants','White sneakers','Light scarf'],
+      autumn: ['Leather jacket','Light sweater','Corduroy trousers','Chelsea boots','Fedora hat']
+    };
+
+    const picks = dummy[weather] || [];
+    recDiv.innerHTML = '';
+    picks.forEach(item => {
+      const d = document.createElement('div');
+      d.className = 'recommendation-item';
+      d.textContent = item;
+      recDiv.appendChild(d);
+    });
+
+    /* 
+    // TODO: swap dummy with a real call, e.g.:
+    fetch('/api/recommend', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ characteristics: lastChars, weather })
+    })
+      .then(r=>r.json())
+      .then(data => {
+        recDiv.innerHTML = '';
+        data.items.forEach(i => {
+          const d = document.createElement('div');
+          d.className = 'recommendation-item';
+          d.textContent = i;
+          recDiv.appendChild(d);
+        });
+      });
+    */
+  });
+})();
