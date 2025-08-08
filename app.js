@@ -8,13 +8,16 @@
   const recommendBtn = document.getElementById('recommendBtn');
   const recDiv       = document.getElementById('recommendations');
 
-  // Load face-api models
+  // show loader
   loadingMsg.style.display = 'block';
   charDiv.textContent = 'Loading face recognition models...';
+
+  // load models from /models
   await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
   await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
   await faceapi.nets.ageGenderNet.loadFromUri('/models');
   await faceapi.nets.faceExpressionNet.loadFromUri('/models');
+
   loadingMsg.style.display = 'none';
   charDiv.textContent = 'Please upload a photo.';
 
@@ -23,20 +26,20 @@
   document.getElementById('photoInput').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    // reset UI
+
+    // reset
     imgPreview.innerHTML = '';
     facePreview.innerHTML = '';
     charDiv.textContent = 'Analyzing photo...';
     weatherSec.style.display = 'none';
     recDiv.innerHTML = 'Select weather and click “Get Recommendations.”';
 
-    // show image
+    // show full image
     const img = document.createElement('img');
     img.src = URL.createObjectURL(file);
     imgPreview.appendChild(img);
 
     img.onload = async () => {
-      // detect
       const detections = await faceapi
         .detectAllFaces(img, new faceapi.TinyFaceDetectorOptions())
         .withFaceLandmarks()
@@ -49,17 +52,15 @@
       }
 
       const face = detections[0];
-      // age/gender
       const age  = Math.round(face.age || 0);
       const gen  = face.gender || 'unknown';
       const genP = face.genderProbability || 0;
-      // expression
       const expEntries = Object.entries(face.expressions || {});
       const [topExp, topP] = expEntries.length
         ? expEntries.reduce((a,b)=> a[1]>b[1]?a:b)
         : ['none',0];
 
-      // skin tone via avg crop
+      // approximate skin tone
       let skinTone = 'n/a';
       try {
         const box = face.detection.box;
@@ -69,11 +70,8 @@
         ctx.drawImage(img, box.x, box.y, box.width, box.height, 0, 0, box.width, box.height);
         const data = ctx.getImageData(0,0,box.width,box.height).data;
         let [r,g,b,count] = [0,0,0,0];
-        for (let i=0; i<data.length; i+=4) {
-          r+=data[i]; g+=data[i+1]; b+=data[i+2]; count++;
-        }
+        for (let i=0; i<data.length; i+=4) { r+=data[i]; g+=data[i+1]; b+=data[i+2]; count++; }
         skinTone = `rgb(${ Math.round(r/count) },${ Math.round(g/count) },${ Math.round(b/count) })`;
-        // show crop
         facePreview.innerHTML = '';
         facePreview.appendChild(cnv);
       } catch {
@@ -92,23 +90,18 @@
           if(p.y>maxY) maxY=p.y;
         });
         const w = maxX-minX, h = maxY-minY, ratio = w/h;
-        if (ratio>=0.9 && ratio<=1.1) faceShape='Square';
-        else if (ratio<0.9) faceShape='Oval';
-        else faceShape='Round';
+        faceShape = (ratio>=0.9 && ratio<=1.1) ? 'Square' : (ratio<0.9 ? 'Oval' : 'Round');
       } catch {}
 
-      // show characteristics
       charDiv.innerHTML = `
-        <div>Face color: <span style="background:${skinTone};padding:0 1em;border-radius:3px;">&nbsp;</span> ${skinTone}</div>
+        <div>Face color: <span style="background:${skinTone};padding:0 1em;border-radius:3px;"> </span> ${skinTone}</div>
         <div>Age: ${age} years</div>
         <div>Gender: ${gen} (${(genP*100).toFixed(1)}%)</div>
         <div>Expression: ${topExp} (${(topP*100).toFixed(1)}%)</div>
         <div>Face shape: ${faceShape}</div>
       `;
 
-      // store for recommendation
       lastChars = { age, gender: gen, skinTone, faceShape };
-      // show weather selector
       weatherSec.style.display = 'block';
     };
   });
@@ -117,7 +110,7 @@
     const weather = document.getElementById('weatherSelect').value;
     recDiv.textContent = 'Generating outfit suggestions…';
 
-    // Dummy logic — replace with your real API integration
+    // dummy recommendations; swap for real API calls
     const dummy = {
       summer: ['Linen shirt','Chino shorts','Canvas sneakers','Sunglasses','Panama hat'],
       winter: ['Wool coat','Layered sweater','Slim jeans','Leather boots','Knit scarf'],
@@ -135,23 +128,6 @@
       recDiv.appendChild(d);
     });
 
-    /* 
-    // TODO: swap dummy with a real call, e.g.:
-    fetch('/api/recommend', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ characteristics: lastChars, weather })
-    })
-      .then(r=>r.json())
-      .then(data => {
-        recDiv.innerHTML = '';
-        data.items.forEach(i => {
-          const d = document.createElement('div');
-          d.className = 'recommendation-item';
-          d.textContent = i;
-          recDiv.appendChild(d);
-        });
-      });
-    */
+    // → later: call your own /api/recommend endpoint instead of dummy
   });
 })();
