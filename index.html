@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Photo Clothes Recommender</title>
   <link rel="stylesheet" href="style.css" />
-  <!-- face-api.js -->
+  <!-- defer so face-api.js loads before app.js runs -->
   <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
 </head>
 <body>
@@ -15,9 +14,7 @@
 
     <div class="upload-section">
       <input type="file" id="photoInput" accept="image/*" />
-      <div class="image-preview" id="imagePreview">
-        <!-- preview goes here -->
-      </div>
+      <div class="image-preview" id="imagePreview"></div>
     </div>
 
     <div class="results-section">
@@ -30,7 +27,6 @@
       <div id="faceCropPreview"></div>
     </div>
 
-    <!-- New: weather selector (hidden until analysis completes) -->
     <div class="results-section weather-section" id="weatherSection" style="display: none;">
       <h2>Select Season/Weather</h2>
       <select id="weatherSelect">
@@ -45,15 +41,13 @@
 
     <div class="results-section">
       <h2>Outfit Recommendations</h2>
-      <div id="recommendations">
-        <!-- filled in by app.js -->
-        Select weather and click “Get Recommendations.”
-      </div>
+      <div id="recommendations">Select weather and click “Get Recommendations.”</div>
     </div>
 
     <div id="loadingMessage" style="display:none;">Loading models, please wait...</div>
   </div>
 
+  <!-- defer so this runs only after face-api.js and DOM are ready -->
   <script defer src="app.js"></script>
 </body>
 </html>
