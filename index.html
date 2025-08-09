@@ -6,7 +6,7 @@
   <title>AI Stylist (MVP)</title>
   <link rel="stylesheet" href="style.css" />
 
-  <!-- ✅ Face API global build (UMD) so `faceapi` exists -->
+  <!-- ✅ Load the UMD build that defines the global `faceapi` -->
   <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 </head>
 <body>
@@ -20,11 +20,8 @@
     <div class="layout">
       <!-- LEFT: Image + Analysis -->
       <section class="left-pane">
-        <!-- Upload & Preview -->
         <div class="card">
-          <div class="card-header">
-            <h2>Upload Photo</h2>
-          </div>
+          <div class="card-header"><h2>Upload Photo</h2></div>
           <div class="card-body">
             <div class="uploader">
               <input id="photoInput" type="file" accept="image/*" />
@@ -37,25 +34,19 @@
               <div id="placeholder" class="placeholder">No image selected</div>
             </figure>
 
-            <p id="detectStatus" class="muted" style="margin-top:8px;">Models not loaded yet…</p>
+            <p id="detectStatus" class="muted" style="margin-top:8px;">
+              Models not loaded yet…
+            </p>
           </div>
         </div>
 
-        <!-- Analysis panel (placeholders; filled in next milestones) -->
+        <!-- Analysis panel (placeholders for now) -->
         <div class="card">
-          <div class="card-header">
-            <h2>AI Analysis</h2>
-          </div>
+          <div class="card-header"><h2>AI Analysis</h2></div>
           <div class="card-body">
             <div class="analysis-grid">
-              <div class="analysis-item">
-                <div class="label">Age</div>
-                <div class="value" id="ageValue">—</div>
-              </div>
-              <div class="analysis-item">
-                <div class="label">Gender</div>
-                <div class="value" id="genderValue">—</div>
-              </div>
+              <div class="analysis-item"><div class="label">Age</div><div class="value" id="ageValue">—</div></div>
+              <div class="analysis-item"><div class="label">Gender</div><div class="value" id="genderValue">—</div></div>
               <div class="analysis-item">
                 <div class="label">Skin Swatch</div>
                 <div class="value swatch">
@@ -63,14 +54,8 @@
                   <span id="skinHex">—</span>
                 </div>
               </div>
-              <div class="analysis-item">
-                <div class="label">Tone</div>
-                <div class="value" id="toneValue">—</div>
-              </div>
-              <div class="analysis-item">
-                <div class="label">Undertone</div>
-                <div class="value" id="undertoneValue">—</div>
-              </div>
+              <div class="analysis-item"><div class="label">Tone</div><div class="value" id="toneValue">—</div></div>
+              <div class="analysis-item"><div class="label">Undertone</div><div class="value" id="undertoneValue">—</div></div>
               <div class="analysis-item full">
                 <div class="label">Notes</div>
                 <div class="value" id="notesValue">Analysis will appear here after detection.</div>
@@ -83,9 +68,7 @@
       <!-- RIGHT: Outfit Snippet -->
       <aside class="right-pane">
         <div class="card sticky">
-          <div class="card-header">
-            <h2>Outfit Snippet</h2>
-          </div>
+          <div class="card-header"><h2>Outfit Snippet</h2></div>
           <div class="card-body">
             <div class="controls">
               <label for="seasonSelect" class="label">Season / Weather</label>
@@ -97,9 +80,7 @@
                 <option value="autumn">Autumn</option>
               </select>
 
-              <button id="getSuggestionsBtn" class="btn" disabled>
-                Get Suggestions
-              </button>
+              <button id="getSuggestionsBtn" class="btn" disabled>Get Suggestions</button>
               <small class="muted">Will enable after AI analysis (next milestones).</small>
             </div>
 
@@ -131,7 +112,7 @@
     </div>
   </footer>
 
-  <!-- Your app code (cache-busted so Pages/CDN doesn’t serve stale JS) -->
-  <script defer src="app.js?v=12"></script>
+  <!-- Your app code (cache-busted) -->
+  <script defer src="app.js?v=13"></script>
 </body>
 </html>
