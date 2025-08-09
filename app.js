@@ -1,4 +1,4 @@
-// Milestone B: image preview + TinyFaceDetector with robust model loading
+// Milestone B: image preview + TinyFaceDetector with GitHub Pages–safe model path
 document.addEventListener('DOMContentLoaded', async () => {
   const photoInput   = document.getElementById('photoInput');
   const previewImg   = document.getElementById('previewImg');
@@ -8,58 +8,60 @@ document.addEventListener('DOMContentLoaded', async () => {
   const notesValue   = document.getElementById('notesValue');
   const frameEl      = document.getElementById('imageFrame');
 
-  if (!photoInput || !previewImg || !overlay || !detectStatus || !frameEl) {
-    console.error('Missing expected DOM elements. Check IDs in index.html.');
-    return;
+  let tinyModelReady = false;
+  let lastDetection  = null;
+
+  // ---- helpers ----
+  function pathJoin(a, b) {
+    return `${a.replace(/\/+$/,'')}/${b.replace(/^\/+/,'')}`;
   }
 
-  // --- state ---
-  let tinyModelReady = false;
-  let lastDetection = null;
+  // For GitHub Pages under /<repo>/, build "/<repo>/models"
+  function getModelsBasePath() {
+    // drop the last segment (usually "" or "index.html"), keep trailing slash
+    const prefix = location.pathname.replace(/[^/]*$/, '');
+    return pathJoin(prefix, 'models');
+  }
 
-  // --- helpers ---
   function resizeOverlayToImage() {
     overlay.width  = frameEl.clientWidth;
     overlay.height = frameEl.clientHeight;
   }
 
-  function drawBox(detection) {
+  function drawBox(det) {
     const ctx = overlay.getContext('2d');
     ctx.clearRect(0, 0, overlay.width, overlay.height);
-    if (!detection) return;
-    const { x, y, width, height } = detection.box;
+    if (!det) return;
+    const { x, y, width, height } = det.box;
     ctx.lineWidth = 3;
     ctx.strokeStyle = '#4da3ff';
     ctx.strokeRect(x, y, width, height);
   }
 
-  async function loadTinyModelWithDiagnostics(statusEl) {
-    // Try common base paths, in order
-    const bases = ['./models', '/models', 'models'];
-    const manifest = 'tiny_face_detector_model-weights_manifest.json';
-
-    let lastErr = null;
-    for (const base of bases) {
-      try {
-        const testUrl = new URL(`${base.replace(/\/+$/,'/')}${manifest}`, location.href).href;
-        console.log('🔎 Testing model manifest URL:', testUrl);
-        statusEl.textContent = `Loading face models from ${base} …`;
-        const res = await fetch(testUrl, { cache: 'no-store' });
-        if (!res.ok) throw new Error(`HTTP ${res.status} on ${testUrl}`);
-
-        // If manifest reachable, let face-api load from that base
-        await faceapi.nets.tinyFaceDetector.loadFromUri(base);
-        console.log('✅ Loaded TinyFaceDetector from', base);
-        statusEl.textContent = `Models loaded from ${base}. Select a photo.`;
-        tinyModelReady = true;
-        return base;
-      } catch (e) {
-        console.warn('❌ Failed at base', base, e);
-        lastErr = e;
-      }
+  async function loadTinyModel(statusEl) {
+    if (typeof faceapi === 'undefined') {
+      statusEl.textContent = 'face-api.js not found. Ensure the CDN script tag loads before app.js';
+      return;
     }
-    statusEl.textContent = 'Failed to load models. Ensure a ./models folder (json + bin) exists next to index.html.';
-    throw lastErr || new Error('Model load failed on all paths');
+
+    const base = getModelsBasePath(); // e.g. "/photo-clothes-recommender/models"
+    const manifest = 'tiny_face_detector_model-weights_manifest.json';
+    const testUrl  = pathJoin(base, manifest);
+
+    // show exactly what we’re trying
+    console.log('🔎 Trying manifest URL:', new URL(testUrl, location.origin).href);
+    statusEl.textContent = `Loading face models from ${base} …`;
+
+    // verify manifest is reachable (also fails fast on wrong folder)
+    const res = await fetch(testUrl, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status} on ${testUrl}`);
+
+    // now let face-api download weights from the same base
+    await faceapi.nets.tinyFaceDetector.loadFromUri(base);
+
+    tinyModelReady = true;
+    statusEl.textContent = `Models loaded from ${base}. Select a photo.`;
+    console.log('✅ TinyFaceDetector loaded from', base);
   }
 
   async function runDetection() {
@@ -75,10 +77,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     detectStatus.textContent = 'Detecting face…';
 
-    const options = new faceapi.TinyFaceDetectorOptions({
-      inputSize: 256,
-      scoreThreshold: 0.5
-    });
+    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 256, scoreThreshold: 0.5 });
 
     let detections = [];
     try {
@@ -92,7 +91,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!detections.length) {
       detectStatus.textContent = 'No face found. Try a clearer, frontal photo.';
-      notesValue.textContent = 'No face detected — ensure good lighting and a front-facing photo.';
+      notesValue.textContent   = 'No face detected — ensure good lighting and a front-facing photo.';
       lastDetection = null;
       drawBox(null);
       return;
@@ -107,10 +106,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     drawBox(primary);
     lastDetection = primary;
     detectStatus.textContent = `Face detected ✓ (score ${(primary.score * 100).toFixed(0)}%)`;
-    notesValue.textContent = 'Primary face detected. Age/gender and skin analysis will be added next.';
+    notesValue.textContent   = 'Primary face detected. Age/gender and skin analysis will be added next.';
   }
 
-  // --- attach preview handler immediately (so preview works even if models fail) ---
+  // Preview first — should work even if models fail
   photoInput.addEventListener('change', (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -122,28 +121,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     previewImg.onload = () => {
       URL.revokeObjectURL(url);
-      runDetection(); // will detect if models ready, else show “loading” status
+      runDetection();
     };
   });
 
-  // --- kick off model load in the background ---
+  // Kick off model load (don’t block preview)
   try {
-    if (typeof faceapi === 'undefined') {
-      detectStatus.textContent = 'face-api.js not loaded. Ensure the script tag is included before app.js with defer.';
-      console.error('faceapi is undefined. Add: <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script> before app.js');
-      return;
-    }
-    await loadTinyModelWithDiagnostics(detectStatus);
-    // If an image is already displayed (user was fast), try detection now
+    await loadTinyModel(detectStatus);
+    // If the user already selected an image, run detection now
     if (previewImg.complete && previewImg.naturalWidth > 0) {
       await runDetection();
     }
   } catch (e) {
-    console.error(e);
-    // Leave preview working; detection will be disabled via status text
+    console.error('Model load failed:', e);
+    detectStatus.textContent = 'Failed to load models. Open Console and click the manifest URL.';
   }
 
-  // Keep overlay aligned on resize
+  // Keep overlay aligned
   window.addEventListener('resize', () => {
     if (!previewImg.src) return;
     resizeOverlayToImage();
