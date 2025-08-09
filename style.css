@@ -114,3 +114,13 @@ select{
 
 /* Minor text */
 .muted{ color:var(--muted); font-size:0.85rem; }
+/* … keep your existing styles from Milestone A … */
+
+/* Overlay canvas to draw face box */
+.overlay-canvas{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  pointer-events:none;
+}
