@@ -1,4 +1,4 @@
-// Milestone B: image preview + TinyFaceDetector with absolute models URL (GitHub Pages safe)
+// Milestone B: image preview + TinyFaceDetector with local → remote fallback
 document.addEventListener('DOMContentLoaded', async () => {
   const photoInput   = document.getElementById('photoInput');
   const previewImg   = document.getElementById('previewImg');
@@ -8,18 +8,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   const notesValue   = document.getElementById('notesValue');
   const frameEl      = document.getElementById('imageFrame');
 
+  if (!photoInput || !previewImg || !overlay || !detectStatus || !frameEl) {
+    console.error('Missing expected DOM elements. Check IDs in index.html.');
+    return;
+  }
+
+  // ---- state ----
   let tinyModelReady = false;
   let lastDetection  = null;
 
   // ---- helpers ----
-  function absoluteModelsBase() {
-    // e.g. https://aakash97bansal-bot.github.io/photo-clothes-recommender/models/
-    return new URL('models/', location.href).href;
-  }
   function resizeOverlayToImage() {
     overlay.width  = frameEl.clientWidth;
     overlay.height = frameEl.clientHeight;
   }
+
   function drawBox(det) {
     const ctx = overlay.getContext('2d');
     ctx.clearRect(0, 0, overlay.width, overlay.height);
@@ -33,27 +36,44 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function loadTinyModel(statusEl) {
     if (typeof faceapi === 'undefined') {
       statusEl.textContent = 'face-api.js not found. Ensure the CDN script tag loads before app.js';
-      console.error('faceapi is undefined');
+      console.error('faceapi is undefined. Add the UMD build before app.js: https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js');
       return;
     }
 
-    const base = absoluteModelsBase();
-    const manifest = 'tiny_face_detector_model-weights_manifest.json';
-    const testUrl  = new URL(manifest, base).href;
+    const LOCAL  = new URL('models/', location.href).href; // e.g. https://.../photo-clothes-recommender/models/
+    const REMOTE = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/tiny_face_detector/';
 
-    console.log('🔎 Trying manifest URL:', testUrl);
-    statusEl.textContent = `Loading face models from ${base} …`;
+    // 1) Try LOCAL first (preflight the manifest so we fail fast if wrong)
+    try {
+      const manifest = new URL('tiny_face_detector_model-weights_manifest.json', LOCAL).href;
+      console.log('🔎 Trying LOCAL manifest URL:', manifest);
+      statusEl.textContent = `Loading face models from ${LOCAL} …`;
 
-    // 1) verify manifest reachable
-    const res = await fetch(testUrl, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status} on ${testUrl}`);
+      const res = await fetch(manifest, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status} on ${manifest}`);
 
-    // 2) load via face-api from the same absolute base
-    await faceapi.nets.tinyFaceDetector.loadFromUri(base);
+      await faceapi.nets.tinyFaceDetector.loadFromUri(LOCAL);
+      tinyModelReady = true;
+      statusEl.textContent = 'Models loaded from local /models/. Select a photo.';
+      console.log('✅ TinyFaceDetector loaded from LOCAL');
+      return 'local';
+    } catch (err) {
+      console.warn('Local tiny model failed, falling back to REMOTE…', err);
+    }
 
+    // 2) Fallback: REMOTE (official host)
+    const remoteManifest = new URL('tiny_face_detector_model-weights_manifest.json', REMOTE).href;
+    console.log('🔎 Trying REMOTE manifest URL:', remoteManifest);
+    statusEl.textContent = 'Loading face models from remote host…';
+
+    const r = await fetch(remoteManifest, { cache: 'no-store' });
+    if (!r.ok) throw new Error(`HTTP ${r.status} on ${remoteManifest}`);
+
+    await faceapi.nets.tinyFaceDetector.loadFromUri(REMOTE);
     tinyModelReady = true;
-    statusEl.textContent = `Models loaded from ${base}. Select a photo.`;
-    console.log('✅ TinyFaceDetector loaded from', base);
+    statusEl.textContent = 'Models loaded from remote host. Select a photo.';
+    console.log('✅ TinyFaceDetector loaded from REMOTE');
+    return 'remote';
   }
 
   async function runDetection() {
@@ -69,10 +89,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     detectStatus.textContent = 'Detecting face…';
 
-    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 256, scoreThreshold: 0.5 });
+    const options = new faceapi.TinyFaceDetectorOptions({
+      inputSize: 256,      // speed/accuracy tradeoff: 160–416
+      scoreThreshold: 0.5
+    });
 
     let detections = [];
     try {
+      // Passing the <img> element yields boxes in displayed coords
       detections = await faceapi.detectAllFaces(previewImg, options);
     } catch (err) {
       console.error('Detection error:', err);
@@ -101,7 +125,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     notesValue.textContent   = 'Primary face detected. Age/gender and skin analysis will be added next.';
   }
 
-  // Preview first — works even if models fail
+  // ---- preview first (works even if models fail) ----
   photoInput.addEventListener('change', (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -117,19 +141,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
   });
 
-  // Kick off model load (don’t block preview)
+  // ---- kick off model load (don’t block preview) ----
   try {
     await loadTinyModel(detectStatus);
-    // If user already picked an image, detect now
     if (previewImg.complete && previewImg.naturalWidth > 0) {
       await runDetection();
     }
   } catch (e) {
     console.error('Model load failed:', e);
-    detectStatus.textContent = 'Failed to load models. Click the manifest URL in Console to debug.';
+    detectStatus.textContent = 'Failed to load models. See console for the manifest URL.';
   }
 
-  // Keep overlay aligned
+  // ---- keep overlay aligned on resize ----
   window.addEventListener('resize', () => {
     if (!previewImg.src) return;
     resizeOverlayToImage();
