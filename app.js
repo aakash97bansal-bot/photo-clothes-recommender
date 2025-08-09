@@ -21,6 +21,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // NOTE: Place model files under /public/models/ (so they’re served as /public/models/...)
     await faceapi.nets.tinyFaceDetector.loadFromUri('/public/models');
     // (Landmarks/age/gender will be loaded in later milestones)
+    await faceapi.nets.tinyFaceDetector.loadFromUri('./models');
+    await faceapi.nets.faceLandmark68Net.loadFromUri('./models');
+    await faceapi.nets.ageGenderNet.loadFromUri('./models');
     detectStatus.textContent = 'Models loaded. Select a photo.';
   } catch (e) {
     console.error(e);
