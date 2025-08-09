@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>AI Stylist (MVP)</title>
   <link rel="stylesheet" href="style.css" />
+  <!-- Face API (defer so DOM is parsed first) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
 </head>
 <body>
   <header class="site-header">
@@ -28,16 +30,17 @@
               <p class="help">Choose a well-lit face photo (jpg/png).</p>
             </div>
 
-            <figure class="image-frame">
+            <figure class="image-frame" id="imageFrame">
               <img id="previewImg" alt="Preview will appear here" />
-              <div id="placeholder" class="placeholder">
-                No image selected
-              </div>
+              <canvas id="overlay" class="overlay-canvas"></canvas>
+              <div id="placeholder" class="placeholder">No image selected</div>
             </figure>
+
+            <p id="detectStatus" class="muted" style="margin-top:8px;">Models not loaded yet…</p>
           </div>
         </div>
 
-        <!-- Analysis panel (will fill in next milestones) -->
+        <!-- Analysis panel (placeholders; filled in next milestones) -->
         <div class="card">
           <div class="card-header">
             <h2>AI Analysis</h2>
